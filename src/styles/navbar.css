@@ -11,7 +11,8 @@
   
   /* Clean glass effect */
   background: rgba(255, 255, 255, 0.05);
- 
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
   
   /* Border radius on sides */
   border-radius: 50px; /* This gives the rounded sides */

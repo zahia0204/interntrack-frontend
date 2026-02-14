@@ -1,24 +1,61 @@
 // src/utils/axiosConfig.js
 import axios from 'axios';
 
+// Use environment variable or fallback to localhost
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
 const axiosInstance = axios.create({
-  baseURL: 'http://localhost:8000/api', // Your Django backend URL
-  timeout: 5000,
+  baseURL: BASE_URL,  // This will be http://localhost:8000
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Add a request interceptor to include token
+// Request interceptor to add token
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('access_token');
     if (token) {
-      config.headers.Authorization = `Token ${token}`;
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
   (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor to handle token refresh
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // If error is 401 and not already retrying
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        const refreshToken = localStorage.getItem('refresh_token');
+        if (refreshToken) {
+          const response = await axios.post(`${BASE_URL}/api/token/refresh/`, {
+            refresh: refreshToken
+          });
+          
+          localStorage.setItem('access_token', response.data.access);
+          originalRequest.headers.Authorization = `Bearer ${response.data.access}`;
+          
+          return axiosInstance(originalRequest);
+        }
+      } catch (refreshError) {
+        // Refresh failed - redirect to login
+        localStorage.clear();
+        window.location.href = '/signin';
+        return Promise.reject(refreshError);
+      }
+    }
+
     return Promise.reject(error);
   }
 );

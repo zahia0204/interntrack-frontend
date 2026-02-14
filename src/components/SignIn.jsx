@@ -1,15 +1,17 @@
 // src/components/SignIn.jsx
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from '../utils/AxiosConfig';
-import '../styles/SignIn.css'; // Using Auth.css instead of SignIn.css
+import authService from '../services/authService';
+import '../styles/SignIn.css';
 
 const SignIn = () => {
   const [formData, setFormData] = useState({
-    email: '',
+    username: '',  // Add username field
+    email: '',     // Keep email for reference
     password: ''
   });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -21,25 +23,23 @@ const SignIn = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
 
     try {
-      const response = await axios.post('/signin/', {
-        email: formData.email,
+      // Use either username or email (whichever is provided)
+      const loginCredentials = {
+        username: formData.username || formData.email,  // Prefer username, fallback to email
         password: formData.password
-      });
+      };
       
-      if (response.data) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        navigate('/');
-      }
+      await authService.signIn(loginCredentials);
+      navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid credentials');
+      setError(err.username ? err.username[0] : 'Invalid credentials');
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const handleGoogleSignIn = () => {
-    window.location.href = 'http://localhost:8000/api/auth/google/';
   };
 
   return (
@@ -51,16 +51,21 @@ const SignIn = () => {
         {error && <div className="error-message">{error}</div>}
         
         <form onSubmit={handleSubmit}>
+          {/* Username field (required by Django) */}
           <div className="form-group">
             <input
-              type="email"
-              name="email"
-              placeholder="Enter your email"
-              value={formData.email}
+              type="text"
+              name="username"
+              placeholder="Enter your username"
+              value={formData.username}
               onChange={handleChange}
               required
+              disabled={loading}
             />
           </div>
+          
+          {/* Optional: Email field for reference */}
+          
           
           <div className="form-group">
             <input
@@ -70,17 +75,23 @@ const SignIn = () => {
               value={formData.password}
               onChange={handleChange}
               required
+              disabled={loading}
             />
           </div>
           
-          <button type="submit" className="auth-btn">
-            Sign in
+          <button 
+            type="submit" 
+            className="auth-btn"
+            disabled={loading}
+          >
+            {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
-        
+                <div className="divider">OR</div>
         <button 
           className="google-btn"
-          onClick={handleGoogleSignIn}
+          onClick={() => {}}
+          disabled={loading}
         >
           Sign in with Google
         </button>

@@ -1,15 +1,18 @@
 // src/components/SignUp.jsx
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from '../utils/AxiosConfig';
-import '../styles/signup.css'; 
+import authService from '../services/authService';
+import '../styles/signup.css';
+
 const SignUp = () => {
   const [formData, setFormData] = useState({
+    username: '',        // ← ADD THIS
     email: '',
     password: '',
     confirmPassword: ''
   });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -21,28 +24,29 @@ const SignUp = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
     
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
+      setLoading(false);
       return;
     }
 
     try {
-      const response = await axios.post('/signup/', {
-        email: formData.email,
-        password: formData.password
+      await authService.signUp(formData);
+      navigate('/signin', { 
+        state: { message: 'Registration successful! Please sign in.' } 
       });
-      
-      if (response.data) {
-        navigate('/signin');
-      }
     } catch (err) {
-      setError(err.response?.data?.message || 'An error occurred');
+      setError(err.message || 'An error occurred');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGoogleSignUp = () => {
-    window.location.href = 'http://localhost:8000/api/auth/google/';
+    authService.googleAuth();
   };
 
   return (
@@ -54,6 +58,19 @@ const SignUp = () => {
         {error && <div className="error-message">{error}</div>}
         
         <form onSubmit={handleSubmit}>
+          {/* NEW: Username field */}
+          <div className="form-group">
+            <input
+              type="text"
+              name="username"
+              placeholder="Choose a username"
+              value={formData.username}
+              onChange={handleChange}
+              required
+              disabled={loading}
+            />
+          </div>
+          
           <div className="form-group">
             <input
               type="email"
@@ -62,6 +79,7 @@ const SignUp = () => {
               value={formData.email}
               onChange={handleChange}
               required
+              disabled={loading}
             />
           </div>
           
@@ -73,6 +91,7 @@ const SignUp = () => {
               value={formData.password}
               onChange={handleChange}
               required
+              disabled={loading}
             />
           </div>
           
@@ -84,11 +103,16 @@ const SignUp = () => {
               value={formData.confirmPassword}
               onChange={handleChange}
               required
+              disabled={loading}
             />
           </div>
           
-          <button type="submit" className="auth-btn">
-            Sign up
+          <button 
+            type="submit" 
+            className="auth-btn"
+            disabled={loading}
+          >
+            {loading ? 'Creating account...' : 'Sign up'}
           </button>
         </form>
         
@@ -97,6 +121,7 @@ const SignUp = () => {
         <button 
           className="google-btn"
           onClick={handleGoogleSignUp}
+          disabled={loading}
         >
           Sign up with Google
         </button>
